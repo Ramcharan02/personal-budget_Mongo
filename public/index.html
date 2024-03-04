@@ -128,7 +128,7 @@
                     <canvas id="myChart" width="200" height="200"></canvas>
                 </p>
             </article>
-            <div id="pie-chart"></div>
+            <svg id="bar-chart" width="200" height="200"></svg>
 
 
         </div>
@@ -221,7 +221,60 @@
 
 
 
+    function CreateD32(data){
+      const svg = d3.select("#bar-chart")
+    .attr("width", width)
+    .attr("height", height);
+      console.log(data)
+      var chartHeight=400
+      var chartWidth=500
+      const xScale = d3.scale.ordinal()
+    .domain(data.map(d => d.title))
+    .rangeRoundBands([0, chartWidth], 0.2);
 
+const yScale = d3.scale.linear()
+    .domain([0, d3.max(data, d => d.budget)])
+    .range([chartHeight, 0]);
+
+// Create bars
+svg.selectAll("rect")
+    .data(data)
+    .enter()
+    .append("rect")
+    .attr("x", function(d) { return xScale(d.title); })
+    .attr("y", function(d) { return yScale(d.budget); })
+    .attr("width", xScale.rangeBand())
+    .attr("height", function(d) { return chartHeight - yScale(d.budget); })
+    .attr("fill", "#283EA6 ");
+
+// Add x-axis (using d3.svg.axis instead of d3.axisBottom)
+svg.append("g")
+    .attr("transform", "translate(0, " + chartHeight + ")")
+    .call(d3.svg.axis().scale(xScale).orient("bottom"));
+
+// Add y-axis (using d3.svg.axis instead of d3.axisLeft)
+svg.append("g")
+    .call(d3.svg.axis().scale(yScale).orient("left"));
+
+// Add labels
+svg.append("text")
+    .attr("x", width / 2)
+    .attr("y", 15)
+    .text("Bar Chart");
+
+svg.append("text")
+    .attr("transform", "rotate(-90)")
+    .attr("x", 20)
+    .attr("y", (chartHeight / 2) + 0)
+    .text("Value");
+
+svg.append("text")
+    .attr("x", (chartWidth / 2) + 10)
+    .attr("y", height - 20 + 15)
+    .text("Category");
+
+
+    }
   function CreateD3(data) {
     function midAngle(d) {
         return d.startAngle + (d.endAngle - d.startAngle) / 2;
@@ -285,7 +338,7 @@ function getBudget() {
                 }
             }
             createChart();
-            CreateD3(newD3Data);
+            CreateD32(newD3Data);
         } else {
             console.error("Invalid or empty budget data:", res.data);
         }
