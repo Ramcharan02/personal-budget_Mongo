@@ -35,8 +35,6 @@
         <header>
             <h2> This is done by Ramcharan</h2>
         </header>
-        <!--This is an A11y change-->
-        <h2><p><i lang="fr">Garder le sourire</i></p></h2>
     </div>
 
     <div class="container center">
@@ -65,7 +63,7 @@
             </div>
     
             <div class="text-box">
-                <section>
+              <section>
                 <h1>Results</h1>
                 <p>
                     People who stick to a financial plan, budgeting every expense, get out of debt faster!
@@ -173,14 +171,14 @@
 
       var newD3Data = [];
 
-      var svg = d3.select("#pie-chart").append("svg").append("g");
+      var svg = d3.select("#pie-chart").append("svg").attr("width", 500).attr("height", 500).append("g");
 
       svg.append("g").attr("class", "slices");
       svg.append("g").attr("class", "labels");
       svg.append("g").attr("class", "lines");
 
-      var width = 900,
-        height = 450,
+      var width = 500,
+        height = 500,
         radius = Math.min(width, height) / 2;
 
       var pie = d3.layout
@@ -224,125 +222,81 @@
 
 
 
-      function CreateD3(data) {
-        /* ------- PIE SLICES -------*/
-        var slice = svg
-          .select(".slices")
-          .selectAll("path.slice")
-          .data(pie(data), key);
+  function CreateD3(data) {
+    function midAngle(d) {
+        return d.startAngle + (d.endAngle - d.startAngle) / 2;
+    }
 
-        slice
-          .enter()
-          .insert("path")
-          .style("fill", function (d) {
-            return color(d.data.title);
-          })
-          .attr("class", "slice");
+    var polyline = svg.select(".lines").selectAll("polyline").data(pie(data), key);
 
-        slice
-          .transition()
-          .duration(1000)
-          .attrTween("d", function (d) {
+    polyline.enter().append("polyline");
+
+    polyline.transition().duration(1000)
+        .attrTween("points", function (d) {
             this._current = this._current || d;
             var interpolate = d3.interpolate(this._current, d);
             this._current = interpolate(0);
             return function (t) {
-              return arc(interpolate(t));
+                var d2 = interpolate(t);
+                var pos = outerArc.centroid(d2);
+                pos[0] = radius * 0.95 * (midAngle(d2) < Math.PI ? 1 : -1);
+                // Ensure that NaN values are replaced with valid numerical values
+                var points = [arc.centroid(d2), outerArc.centroid(d2), pos]
+                    .map(function(coord) {
+                        return isNaN(coord) ? [0, 0] : coord;
+                    })
+                    .join(" ");
+                return points;
             };
-          });
-
-        slice.exit().remove();
-
-        /* ------- TEXT LABELS -------*/
-
-        var text = svg.select(".labels").selectAll("text").data(pie(data), key);
-
-        text
-          .enter()
-          .append("text")
-          .attr("dy", ".35em")
-          .text(function (d) {
-            return d.data.title;
-          });
-
-        function midAngle(d) {
-          return d.startAngle + (d.endAngle - d.startAngle) / 2;
-        }
-
-        text
-          .transition()
-          .duration(1000)
-          .attrTween("transform", function (d) {
-            this._current = this._current || d;
-            var interpolate = d3.interpolate(this._current, d);
-            this._current = interpolate(0);
-            return function (t) {
-              var d2 = interpolate(t);
-              var pos = outerArc.centroid(d2);
-              pos[0] = radius * (midAngle(d2) < Math.PI ? 1 : -1);
-              return "translate(" + pos + ")";
-            };
-          })
-          .styleTween("text-anchor", function (d) {
-            this._current = this._current || d;
-            var interpolate = d3.interpolate(this._current, d);
-            this._current = interpolate(0);
-            return function (t) {
-              var d2 = interpolate(t);
-              return midAngle(d2) < Math.PI ? "start" : "end";
-            };
-          });
-
-        text.exit().remove();
-
-        /* ------- SLICE TO TEXT POLYLINES -------*/
-
-        var polyline = svg
-          .select(".lines")
-          .selectAll("polyline")
-          .data(pie(data), key);
-
-        polyline.enter().append("polyline");
-
-        polyline
-          .transition()
-          .duration(1000)
-          .attrTween("points", function (d) {
-            this._current = this._current || d;
-            var interpolate = d3.interpolate(this._current, d);
-            this._current = interpolate(0);
-            return function (t) {
-              var d2 = interpolate(t);
-              var pos = outerArc.centroid(d2);
-              pos[0] = radius * 0.95 * (midAngle(d2) < Math.PI ? 1 : -1);
-              return [arc.centroid(d2), outerArc.centroid(d2), pos];
-            };
-          });
-
-        polyline.exit().remove();
-      }
-
-
-
-      function getBudget() {
-        axios.get("http://localhost:3000/budget")
-        .then(function (res) {
-        console.log(res);
-          for (var i = 0; i < res.data.length; i++) {
-            dataSource.datasets[0].data[i] = res.data[i].budget;
-            dataSource.labels[i] = res.data[i].title;
-            dataSource.datasets[0].backgroundColor[i] = res.data[i].color;
-            newD3Data.push({
-              "title": res.data[i].title,
-              "budget": res.data[i].budget,
-            });
-          }
-          createChart();
-          CreateD3(newD3Data);
+        })
+        .each("end", function (d) {
+            // Ensure that NaN values are not present in the polyline points
+            var points = d3.select(this).attr("points");
+            if (points.split(" ").some(isNaN)) {
+                d3.select(this).remove();
+            }
         });
-      }
 
-      getBudget();
+    polyline.exit().remove();
+
+}
+
+
+
+function getBudget() {
+    axios.get("http://localhost:3000/budget")
+    .then(function (res) {
+        console.log(res); // Log the response object
+        // Check if myBudget array exists in the response
+        if (res.data && Array.isArray(res.data) && res.data.length > 0 && res.data[0].myBudget) {
+            const myBudget = res.data[0].myBudget;
+            for (var i = 0; i < myBudget.length; i++) {
+                // Ensure that budget, title, and color properties exist in each object
+                if (myBudget[i].budget && myBudget[i].title && myBudget[i].color) {
+                    dataSource.datasets[0].data[i] = myBudget[i].budget;
+                    dataSource.labels[i] = myBudget[i].title;
+                    dataSource.datasets[0].backgroundColor[i] = myBudget[i].color;
+                    newD3Data.push({
+                        "title": myBudget[i].title,
+                        "budget": myBudget[i].budget,
+                    });
+                } else {
+                    console.error("Invalid budget data at index", i, ": ", myBudget[i]);
+                }
+            }
+            createChart();
+            CreateD3(newD3Data);
+        } else {
+            console.error("Invalid or empty budget data:", res.data);
+        }
+    })
+    .catch(function (error) {
+        console.error('Error fetching budget data:', error);
+    });
+}
+document.addEventListener("DOMContentLoaded", function () {
+        getBudget();
+    });
     </script>
   </body>
 </html>
